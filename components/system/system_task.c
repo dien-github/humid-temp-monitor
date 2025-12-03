@@ -265,18 +265,22 @@ static void task_system_monitor(void *pvParameter)
     while (1) {
         vTaskDelayUntil(&last_wake_time, period);
         
-        // Log system status
+        // Copy system status data under critical section
+        system_status_t status_copy = {0};
         portENTER_CRITICAL(&g_status_mutex);
-        APP_LOG_INFO(TAG, "=== System Status ===");
-        APP_LOG_INFO(TAG, "State: %s", system_state_to_string(g_system_status.state));
-        APP_LOG_INFO(TAG, "Uptime: %ld ms", g_system_status.uptime_ms);
-        APP_LOG_INFO(TAG, "Sensor reads: %ld, errors: %ld",
-                    g_system_status.sensor_read_count,
-                    g_system_status.sensor_error_count);
-        APP_LOG_INFO(TAG, "WiFi reconnects: %ld, MQTT reconnects: %ld",
-                    g_system_status.wifi_reconnect_count,
-                    g_system_status.mqtt_reconnect_count);
+        memcpy(&status_copy, &g_system_status, sizeof(system_status_t));
         portEXIT_CRITICAL(&g_status_mutex);
+        
+        // Log system status outside critical section (logging can block)
+        APP_LOG_INFO(TAG, "=== System Status ===");
+        APP_LOG_INFO(TAG, "State: %s", system_state_to_string(status_copy.state));
+        APP_LOG_INFO(TAG, "Uptime: %ld ms", status_copy.uptime_ms);
+        APP_LOG_INFO(TAG, "Sensor reads: %ld, errors: %ld",
+                    status_copy.sensor_read_count,
+                    status_copy.sensor_error_count);
+        APP_LOG_INFO(TAG, "WiFi reconnects: %ld, MQTT reconnects: %ld",
+                    status_copy.wifi_reconnect_count,
+                    status_copy.mqtt_reconnect_count);
         
         // Check sensor health
         if (!sensor_dht_is_healthy()) {
@@ -287,7 +291,7 @@ static void task_system_monitor(void *pvParameter)
         // Check heap
         size_t free_heap = esp_get_free_heap_size();
         size_t min_free_heap = esp_get_minimum_free_heap_size();
-        APP_LOG_DEBUG(TAG, "Heap: free=%d bytes, min_free=%d bytes", 
+        APP_LOG_DEBUG(TAG, "Heap: free=%zu bytes, min_free=%zu bytes", 
                      free_heap, min_free_heap);
         
         if (free_heap < 5000) {
