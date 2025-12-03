@@ -12,7 +12,7 @@
 
 #include "app_config.h"
 #include "app_common.h"
-#include "sensor_dht.h"
+#include "sdkconfig.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 #include <string.h>
@@ -26,7 +26,7 @@ static const app_config_t default_config = {
     .dht_pin = 4,
     .relay_pin = 5,
     .fan_pin = 18,
-    .dht_type = DHT_TYPE_DHT11,
+    .dht_type = 11,
 
     .wifi_ssid = {0},
     .wifi_pass = {0},
@@ -56,8 +56,6 @@ static app_config_t g_app_config;
 /* =========================================================================
    NVS HELPER FUNCTIONS
    ========================================================================= */
-
-
 /**
  * @brief Load string from NVS with fallback to default
  * @param handle NVS handle
@@ -199,6 +197,20 @@ app_err_t app_config_load(void) {
         default_config.mqtt_qos);
     
     nvs_close(handle);
+
+    // If WiFi not set in NVS, fallback to menuconfig (dev convenience)
+#ifdef CONFIG_APP_WIFI_SSID
+#ifdef CONFIG_APP_WIFI_PASSWORD
+    if (strlen(g_app_config.wifi_ssid) == 0 && strlen(CONFIG_APP_WIFI_SSID) > 0) {
+        APP_LOG_INFO(TAG, "WiFi not found in NVS, using menuconfig credentials (dev)");
+        strncpy(g_app_config.wifi_ssid, CONFIG_APP_WIFI_SSID, sizeof(g_app_config.wifi_ssid) - 1);
+        strncpy(g_app_config.wifi_pass, CONFIG_APP_WIFI_PASSWORD, sizeof(g_app_config.wifi_pass) - 1);
+
+        // Persist so future boots don’t require menuconfig
+        app_config_save_wifi(g_app_config.wifi_ssid, g_app_config.wifi_pass);
+    }
+#endif
+#endif
     
     APP_LOG_INFO(TAG, "Configuration loaded successfully.");
     app_config_print();
