@@ -12,8 +12,8 @@
  */
 
 #include "app_mqtt.h"
-#include "mqtt_client.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/queue.h"
 #include <string.h>
 #include <cJSON.h>
@@ -24,6 +24,47 @@ static const char *TAG = "MQTT";
    PRIVATE STATE
    ============================================================================ */
 
+/**
+ * @brief Runtime context for the MQTT subsystem.
+ *
+ * @details Encapsulates the MQTT client handle, configuration, connection state,
+ * runtime statistics, and a command queue used by the network/app_mqtt
+ * component to manage MQTT operations and reconnection logic.
+ *
+ * Members:
+ *  - client: Handle to the underlying ESP MQTT client instance used to
+ *            publish/subscribe and receive events.
+ *  - config: MQTT configuration (broker address, credentials, topics, QoS,
+ *            etc.) used to initialize the client.
+ *  - connected: Boolean flag indicating whether the client is currently
+ *               connected to the broker.
+ *  - initialized: Boolean flag indicating whether the context and client
+ *                 have been successfully initialized.
+ *
+ *  - messages_published: Counter of successfully published messages.
+ *  - messages_received: Counter of messages received from the broker.
+ *  - publish_failures: Counter of failed publish attempts.
+ *  - reconnect_count: Total number of reconnect attempts (used for logging
+ *                     and backoff strategies).
+ *
+ *  - command_queue: RTOS queue handle used to receive commands or control
+ *                   messages from other tasks (e.g., publish requests,
+ *                   subscription changes, or shutdown signals).
+ *
+ *  - last_connect_time: Timestamp in milliseconds of the last successful
+ *                       connection to the broker. Used for diagnostics and
+ *                       backoff calculations.
+ *  - reconnect_delay_ms: Current reconnect delay (milliseconds) used by the
+ *                        backoff/reconnect logic. Updated on reconnect attempts.
+ *
+ * @note - Access to this context may occur from multiple tasks and from MQTT
+ *    callbacks. Proper synchronization (mutexes or atomic operations) should
+ *    be used when multiple writers/readers access mutable fields.
+ * @note - Counters are monotonically increasing and may wrap; treat them as
+ *    non-atomic snapshots unless synchronized externally.
+ * @note - Timestamps are expected to be in the same clock domain as the rest of
+ *    the system (e.g., millis since boot) for correct interval calculations.
+ */
 typedef struct {
     esp_mqtt_client_handle_t client;
     mqtt_config_t config;
@@ -192,7 +233,7 @@ static void mqtt_prepare_config(esp_mqtt_client_config_t *mqtt_cfg,
     
     mqtt_cfg->broker.address.uri = app_cfg->broker_uri;
     mqtt_cfg->credentials.username = app_cfg->username;
-    mqtt_cfg->credentials.password = app_cfg->password;
+    mqtt_cfg->credentials.authentication.password = app_cfg->password;
     mqtt_cfg->session.keepalive = app_cfg->keepalive_sec;
     mqtt_cfg->network.reconnect_timeout_ms = app_cfg->reconnect_timeout_ms;
     
