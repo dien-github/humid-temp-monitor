@@ -1,0 +1,18 @@
+idf_component_register(
+    SRCS
+        "main.c"
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        app_config
+        sensor
+        output
+        network
+        system
+        utils
+        esp_wifi
+        esp_event
+        nvs_flash
+        esp_netif
+        freertos
+)
