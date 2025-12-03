@@ -35,7 +35,7 @@
 #define DEFAULT_DHT_PIN 4 /**< DHT11 data pin (GPIO4) */
 #define DEFAULT_RELAY_PIN 5 /**< Relay control pin (GPIO5) */
 #define DEFAULT_FAN_PIN 18 /**< Fan PWM control pin (GPIO18) */
-#define DEFAULT_DHT_TYPE DHT_TYPE_DHT11 /**< Sensor type */
+#define DEFAULT_DHT_TYPE 11 /**< Sensor type */
 /** @} */
 
 /* =========================================================================
