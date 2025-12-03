@@ -31,6 +31,15 @@
 
 static const char *TAG = "MAIN";
 
+/* =======================================================================
+   FORWARD DECLARATIONS
+   ========================================================================= */
+void on_wifi_connected(void);
+void on_wifi_disconnected(void);
+void on_mqtt_connected(void);
+void on_mqtt_disconnected(void);
+void on_mqtt_command_received(const char *topic, const char *payload, int payload_len);
+
 /* =========================================================================
    UTILITY FUNCTION IMPLEMENTATIONS
    ========================================================================= */
@@ -213,8 +222,18 @@ static app_err_t wifi_connection_init(const app_config_t *config)
         return APP_OK;
     }
 
+    app_wifi_config_t wifi_cfg = {
+        .ssid = config->wifi_ssid,
+        .password = config->wifi_pass,
+        .max_retries = 5,
+        .timeout_ms = 10000,
+        .on_connected = on_wifi_connected,
+        .on_disconnected = on_wifi_disconnected,
+        .on_connect_failed = NULL
+    };
+
     // Initialize WiFi (non-blocking)
-    app_err_t ret = app_wifi_init(config);
+    app_err_t ret = app_wifi_init(&wifi_cfg);
     if (ret != APP_OK) {
         APP_LOG_ERROR(TAG, "WiFi init failed: %s", app_err_to_string(ret));
         return ret;
@@ -242,8 +261,20 @@ static app_err_t mqtt_connection_init(const app_config_t *config)
 {
     APP_LOG_INFO(TAG, "=== PHASE 5: MQTT CONNECTION ===");
 
+    mqtt_config_t mqtt_cfg = {
+        .broker_uri = config->mqtt_broker_uri,
+        .username = config->mqtt_username,
+        .password = config->mqtt_password,
+        .keepalive_sec = 60,
+        .reconnect_timeout_ms = 5000,
+        .on_message = on_mqtt_command_received,
+        .on_connected = on_mqtt_connected,
+        .on_disconnected = on_mqtt_disconnected,
+        .on_publish_failed = NULL
+    };
+
     // Initialize MQTT (non-blocking)
-    app_err_t ret = app_mqtt_init(config);
+    app_err_t ret = app_mqtt_init(&mqtt_cfg);
     if (ret != APP_OK) {
         APP_LOG_ERROR(TAG, "MQTT init failed: %s", app_err_to_string(ret));
         return ret;
@@ -301,21 +332,22 @@ void on_mqtt_disconnected(void)
 /**
  * @brief Callback when MQTT command is received
  * 
+ * @param topic Pointer to topic string
  * @param payload Pointer to payload data
  * @param payload_len Length of payload data
  * 
  * This will be processed in the mqtt_rx_task() via queue
  * There will have no processing here.
  */
-void on_mqtt_command_received(const char *payload, int payload_len)
+void on_mqtt_command_received(const char *topic, const char *payload, int payload_len)
 {
-    APP_LOG_DEBUG(TAG, "MQTT command received: %.*s", payload_len, payload);
+    APP_LOG_DEBUG(TAG, "MQTT command received on %s: %.*s", topic, payload_len, payload);
 }
 
 /* =========================================================================
    APPLICATION ENTRY POINT
    ========================================================================= */
-void app_main(vodi)
+void app_main(void)
 {
     APP_LOG_INFO(TAG, "=== APPLICATION START ===");
     
@@ -379,10 +411,10 @@ void app_main(vodi)
     // ========================================================================
     ret = mqtt_connection_init(config);
     if (ret != APP_OK)
-    [
+    {
         APP_LOG_ERROR(TAG, "MQTT init failed: %s", app_err_to_string(ret));
         // Can operate without MQTT
-    ]
+    }
 
     // ========================================================================
     // STARTUP COMPLETE
@@ -411,12 +443,12 @@ void app_main(vodi)
             last_state = status.state;
 
             // Signal system ready when MQTT connected
-            if (status.state = SYSTEM_STATE_MQTT_CONNECTED) {
+            if (status.state == SYSTEM_STATE_MQTT_CONNECTED) {
                 system_task_signal_ready();
             }
         }
 
-        // Sleep 30 seconds betwwen checks
+        // Sleep 30 seconds between checks
         vTaskDelay(pdMS_TO_TICKS(30000));
     }
 }
@@ -437,6 +469,6 @@ void print_memory_info(void)
     APP_LOG_INFO(TAG, "");
 
     if (free_heap < 10000) {
-        APP_LOG_WARN(TAG, "!!! LOW MEMORY DETECTED!")
+        APP_LOG_WARN(TAG, "!!! LOW MEMORY DETECTED!");
     }
 }
