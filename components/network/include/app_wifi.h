@@ -30,7 +30,7 @@ typedef struct {
     wifi_callback_t on_connected;      // Called on successful connection
     wifi_callback_t on_disconnected;   // Called on disconnection
     wifi_callback_t on_connect_failed; // Called on connection failure
-} wifi_config_t;
+} app_wifi_config_t;
 
 /* ============================================================================
    PUBLIC API
@@ -45,7 +45,7 @@ typedef struct {
  * This function returns immediately. WiFi connection happens in background.
  * Callbacks will be invoked when events occur.
  */
-app_err_t app_wifi_init(const wifi_config_t *config);
+app_err_t app_wifi_init(const app_wifi_config_t *config);
 
 /**
  * @brief Get WiFi connection status

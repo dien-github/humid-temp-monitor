@@ -14,6 +14,7 @@
 #include "app_mqtt.h"
 #include "mqtt_client.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/queue.h"
 #include <string.h>
 #include <cJSON.h>
@@ -50,6 +51,11 @@ typedef struct {
 } mqtt_command_t;
 
 static mqtt_context_t g_mqtt_ctx = {0};
+
+/* ============================================================================
+   FORWARD DECLARATIONS
+   ============================================================================ */
+static void mqtt_parse_and_queue_command(const char *data, int data_len);
 
 /* ============================================================================
    MQTT EVENT HANDLER

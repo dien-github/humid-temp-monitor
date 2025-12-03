@@ -53,7 +53,7 @@ typedef enum {
 
 typedef struct {
     // Configuration
-    wifi_config_t config;
+    app_wifi_config_t config;
     
     // State
     wifi_state_t state;
@@ -342,7 +342,7 @@ static app_err_t wifi_init_interface(const char *ssid, const char *password)
    PUBLIC API IMPLEMENTATION
    ============================================================================ */
 
-app_err_t app_wifi_init(const wifi_config_t *config)
+app_err_t app_wifi_init(const app_wifi_config_t *config)
 {
     if (!config) {
         APP_LOG_ERROR(TAG, "WiFi config is NULL");
@@ -364,7 +364,7 @@ app_err_t app_wifi_init(const wifi_config_t *config)
     APP_LOG_INFO(TAG, "╚═══════════════════════════════════╝");
     
     // Copy configuration
-    memcpy(&g_wifi_ctx.config, config, sizeof(wifi_config_t));
+    memcpy(&g_wifi_ctx.config, config, sizeof(app_wifi_config_t));
     
     // Validate config
     if (g_wifi_ctx.config.max_retries == 0) {

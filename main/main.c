@@ -19,6 +19,7 @@
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
 #include "esp_log.h"
+#include "esp_heap_caps.h"
 #include "nvs_flash.h"
 
 #include "app_config.h"
@@ -213,8 +214,19 @@ static app_err_t wifi_connection_init(const app_config_t *config)
         return APP_OK;
     }
 
+    // Create WiFi configuration from app configuration
+    app_wifi_config_t wifi_cfg = {
+        .ssid = config->wifi_ssid,
+        .password = config->wifi_pass,
+        .max_retries = 10,
+        .timeout_ms = 30000,
+        .on_connected = on_wifi_connected,
+        .on_disconnected = on_wifi_disconnected,
+        .on_connect_failed = NULL
+    };
+
     // Initialize WiFi (non-blocking)
-    app_err_t ret = app_wifi_init(config);
+    app_err_t ret = app_wifi_init(&wifi_cfg);
     if (ret != APP_OK) {
         APP_LOG_ERROR(TAG, "WiFi init failed: %s", app_err_to_string(ret));
         return ret;
@@ -242,8 +254,21 @@ static app_err_t mqtt_connection_init(const app_config_t *config)
 {
     APP_LOG_INFO(TAG, "=== PHASE 5: MQTT CONNECTION ===");
 
+    // Create MQTT configuration from app configuration
+    mqtt_config_t mqtt_cfg = {
+        .broker_uri = config->mqtt_broker_uri,
+        .username = config->mqtt_username,
+        .password = config->mqtt_password,
+        .keepalive_sec = 60,
+        .reconnect_timeout_ms = 10000,
+        .on_message = on_mqtt_command_received,
+        .on_connected = on_mqtt_connected,
+        .on_disconnected = on_mqtt_disconnected,
+        .on_publish_failed = NULL
+    };
+
     // Initialize MQTT (non-blocking)
-    app_err_t ret = app_mqtt_init(config);
+    app_err_t ret = app_mqtt_init(&mqtt_cfg);
     if (ret != APP_OK) {
         APP_LOG_ERROR(TAG, "MQTT init failed: %s", app_err_to_string(ret));
         return ret;
@@ -301,21 +326,22 @@ void on_mqtt_disconnected(void)
 /**
  * @brief Callback when MQTT command is received
  * 
- * @param payload Pointer to payload data
- * @param payload_len Length of payload data
+ * @param topic Pointer to topic string
+ * @param data Pointer to payload data
+ * @param data_len Length of payload data
  * 
  * This will be processed in the mqtt_rx_task() via queue
  * There will have no processing here.
  */
-void on_mqtt_command_received(const char *payload, int payload_len)
+void on_mqtt_command_received(const char *topic, const char *data, int data_len)
 {
-    APP_LOG_DEBUG(TAG, "MQTT command received: %.*s", payload_len, payload);
+    APP_LOG_DEBUG(TAG, "MQTT command received on %s: %.*s", topic, data_len, data);
 }
 
 /* =========================================================================
    APPLICATION ENTRY POINT
    ========================================================================= */
-void app_main(vodi)
+void app_main(void)
 {
     APP_LOG_INFO(TAG, "=== APPLICATION START ===");
     
@@ -323,16 +349,7 @@ void app_main(vodi)
     app_config_t *config = NULL;
 
     // ========================================================================
-    // PHASE 1: INITIALIZATION HARDWARE
-    // ========================================================================
-    ret = hardware_init(NULL);
-    if (ret != APP_OK) {
-        APP_LOG_ERROR(TAG, "Hardware init failed, aborting: %s", app_err_to_string(ret));
-        return;
-    }
-
-    // ========================================================================
-    // PHASE 2: LOAD CONFIGURATION
+    // PHASE 1: LOAD CONFIGURATION (must be first to get pin configuration)
     // ========================================================================
     ret = config_init(&config);
     if (ret != APP_OK) {
@@ -345,11 +362,12 @@ void app_main(vodi)
         return;
     }
 
-    // Re-initialize hardware with configured pins
+    // ========================================================================
+    // PHASE 2: INITIALIZE HARDWARE (with configured pins)
+    // ========================================================================
     ret = hardware_init(config);
-    if (ret != APP_OK)
-    {
-        APP_LOG_ERROR(TAG, "Hardware re-init failed, aborting: %s", app_err_to_string(ret));
+    if (ret != APP_OK) {
+        APP_LOG_ERROR(TAG, "Hardware init failed, aborting: %s", app_err_to_string(ret));
         return;
     }
 
@@ -379,10 +397,10 @@ void app_main(vodi)
     // ========================================================================
     ret = mqtt_connection_init(config);
     if (ret != APP_OK)
-    [
+    {
         APP_LOG_ERROR(TAG, "MQTT init failed: %s", app_err_to_string(ret));
         // Can operate without MQTT
-    ]
+    }
 
     // ========================================================================
     // STARTUP COMPLETE
@@ -411,7 +429,7 @@ void app_main(vodi)
             last_state = status.state;
 
             // Signal system ready when MQTT connected
-            if (status.state = SYSTEM_STATE_MQTT_CONNECTED) {
+            if (status.state == SYSTEM_STATE_MQTT_CONNECTED) {
                 system_task_signal_ready();
             }
         }
@@ -431,12 +449,12 @@ void print_memory_info(void)
     size_t largest_free_block = heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT);
 
     APP_LOG_INFO(TAG, "=== MEMORY STATUS ===");
-    APP_LOG_INFO(TAG, "Free heap: %d bytes", free_heap);
-    APP_LOG_INFO(TAG, "Min free heap: %d bytes", min_free_heap);
-    APP_LOG_INFO(TAG, "Largest block: %d bytes", largest_free_block);
+    APP_LOG_INFO(TAG, "Free heap: %zu bytes", free_heap);
+    APP_LOG_INFO(TAG, "Min free heap: %zu bytes", min_free_heap);
+    APP_LOG_INFO(TAG, "Largest block: %zu bytes", largest_free_block);
     APP_LOG_INFO(TAG, "");
 
     if (free_heap < 10000) {
-        APP_LOG_WARN(TAG, "!!! LOW MEMORY DETECTED!")
+        APP_LOG_WARN(TAG, "!!! LOW MEMORY DETECTED!");
     }
 }
