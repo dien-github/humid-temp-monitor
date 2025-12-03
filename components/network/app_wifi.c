@@ -18,6 +18,7 @@
 #include "esp_wifi.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include <string.h>
@@ -53,7 +54,7 @@ typedef enum {
 
 typedef struct {
     // Configuration
-    wifi_config_t config;
+    app_wifi_config_t config;
     
     // State
     wifi_state_t state;
@@ -121,7 +122,7 @@ static void wifi_format_ip(uint32_t ip, char *str, size_t len)
         return;
     }
     
-    snprintf(str, len, "%d.%d.%d.%d",
+    snprintf(str, len, "%lu.%lu.%lu.%lu",
             (ip >> 0) & 0xFF,
             (ip >> 8) & 0xFF,
             (ip >> 16) & 0xFF,
@@ -342,7 +343,7 @@ static app_err_t wifi_init_interface(const char *ssid, const char *password)
    PUBLIC API IMPLEMENTATION
    ============================================================================ */
 
-app_err_t app_wifi_init(const wifi_config_t *config)
+app_err_t app_wifi_init(const app_wifi_config_t *config)
 {
     if (!config) {
         APP_LOG_ERROR(TAG, "WiFi config is NULL");
@@ -364,7 +365,7 @@ app_err_t app_wifi_init(const wifi_config_t *config)
     APP_LOG_INFO(TAG, "╚═══════════════════════════════════╝");
     
     // Copy configuration
-    memcpy(&g_wifi_ctx.config, config, sizeof(wifi_config_t));
+    memcpy(&g_wifi_ctx.config, config, sizeof(app_wifi_config_t));
     
     // Validate config
     if (g_wifi_ctx.config.max_retries == 0) {
