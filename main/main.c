@@ -3,6 +3,9 @@
  * @brief Application entry point with proper initialization sequence
  * @version 2.0
  * 
+ * TODO:
+ * CHANGE phase : load -> init hardware 
+ * 
  * Initialization Sequence:
  * 1. Hardware initialization (fast, non-blocking)
  * 2. Configuration system (load from NVS)
@@ -39,6 +42,7 @@ void on_wifi_disconnected(void);
 void on_mqtt_connected(void);
 void on_mqtt_disconnected(void);
 void on_mqtt_command_received(const char *topic, const char *payload, int payload_len);
+void print_memory_info(void);
 
 /* =========================================================================
    UTILITY FUNCTION IMPLEMENTATIONS
@@ -89,7 +93,48 @@ const char* system_state_to_string(system_state_t state)
 }
 
 /* =========================================================================
-   PHASE 1: HARDWARE INITIALIZATION
+   PHASE 1: CONFIGURATION LOAD
+   ========================================================================= */
+/**
+ * @brief Initialize configuration system
+ * 
+ * @param config_out Pointer to store loaded configuration
+ * @return `APP_OK` on success, error code otherwise
+ */
+static app_err_t config_init(app_config_t **config_out) {
+    APP_LOG_INFO(TAG, "=== PHASE 1: CONFIGURATION SYSTEM ===");
+
+    // Initialize NVS
+    app_err_t ret = app_config_init_nvs();
+    if (ret != APP_OK) {
+        APP_LOG_ERROR(TAG, "NVS init failed: %s", app_err_to_string(ret));
+        return ret;
+    }
+    APP_LOG_INFO(TAG, ":))) NVS initialized successfully.");
+
+    // Load configuration (defaults + NVS overrides)
+    ret = app_config_load();
+    if (ret != APP_OK) {
+        APP_LOG_ERROR(TAG, "Configuration load failed: %s", app_err_to_string(ret));
+        return ret;
+    }
+    APP_LOG_INFO(TAG, ":))) Configuration loaded successfully.");
+
+    app_config_t *config = app_config_get();
+    *config_out = config;
+
+    // Validate critical config
+    if (strlen(config->wifi_ssid) == 0) {
+        APP_LOG_WARN(TAG, "WiFi SSID not configured (empty)");
+        APP_LOG_WARN(TAG, "Configure via app_config_save_wifi() before WiFi connection");
+    }
+    
+    print_memory_info();
+    return APP_OK;
+}
+
+/* =========================================================================
+   PHASE 2: HARDWARE INITIALIZATION
    ========================================================================= */
 /**
  * @brief Initialize hardware components
@@ -98,7 +143,7 @@ const char* system_state_to_string(system_state_t state)
  * @return `APP_OK` on success, error code otherwise
  */
 static app_err_t hardware_init(const app_config_t *config) {
-    APP_LOG_INFO(TAG, "=== PHASE 1: HARDWARE INITIALIZATION ===");
+    APP_LOG_INFO(TAG, "=== PHASE 2: HARDWARE INITIALIZATION ===");
 
     // Initialization output module (relay, fan)
     app_err_t ret = app_output_init(config->relay_pin, config->fan_pin);
@@ -125,46 +170,6 @@ static app_err_t hardware_init(const app_config_t *config) {
     } else if (test_reading.is_valid) {
         APP_LOG_INFO(TAG, "Initial DHT reading: Temp=%.1f C, Hum=%.1f %%", 
             test_reading.temperature, test_reading.humidity);
-    }
-
-    return APP_OK;
-}
-
-/* =========================================================================
-   PHASE 2: CONFIGURATION LOAD
-   ========================================================================= */
-/**
- * @brief Initialize configuration system
- * 
- * @param config_out Pointer to store loaded configuration
- * @return `APP_OK` on success, error code otherwise
- */
-static app_err_t config_init(app_config_t **config_out) {
-    APP_LOG_INFO(TAG, "=== PHASE 2: CONFIGURATION SYSTEM ===");
-
-    // Initialize NVS
-    app_err_t ret = app_config_init_nvs();
-    if (ret != APP_OK) {
-        APP_LOG_ERROR(TAG, "NVS init failed: %s", app_err_to_string(ret));
-        return ret;
-    }
-    APP_LOG_INFO(TAG, ":))) NVS initialized successfully.");
-
-    // Load configuration (defaults + NVS overrides)
-    ret = app_config_load();
-    if (ret != APP_OK) {
-        APP_LOG_ERROR(TAG, "Configuration load failed: %s", app_err_to_string(ret));
-        return ret;
-    }
-    APP_LOG_INFO(TAG, ":))) Configuration loaded successfully.");
-
-    app_config_t *config = app_config_get();
-    *config_out = config;
-
-    // Validate critical config
-    if (strlen(config->wifi_ssid) == 0) {
-        APP_LOG_WARN(TAG, "WiFi SSID not configured (empty)");
-        APP_LOG_WARN(TAG, "Configure via app_config_save_wifi() before WiFi connection");
     }
 
     return APP_OK;
@@ -214,7 +219,7 @@ static app_err_t task_system_init(const app_config_t *config)
 static app_err_t wifi_connection_init(const app_config_t *config)
 {
     APP_LOG_INFO(TAG, "=== PHASE 4: WIFI CONNECTION ===");
-
+    app_config_save_wifi("Nha N", "NhaN123@");
     // Check if WiFi credentials are configured
     if (strlen(config->wifi_ssid) == 0) {
         APP_LOG_WARN(TAG, "WiFi not configured, skipping connection");
@@ -355,16 +360,7 @@ void app_main(void)
     app_config_t *config = NULL;
 
     // ========================================================================
-    // PHASE 1: INITIALIZATION HARDWARE
-    // ========================================================================
-    ret = hardware_init(NULL);
-    if (ret != APP_OK) {
-        APP_LOG_ERROR(TAG, "Hardware init failed, aborting: %s", app_err_to_string(ret));
-        return;
-    }
-
-    // ========================================================================
-    // PHASE 2: LOAD CONFIGURATION
+    // PHASE 1: LOAD CONFIGURATION
     // ========================================================================
     ret = config_init(&config);
     if (ret != APP_OK) {
@@ -377,11 +373,13 @@ void app_main(void)
         return;
     }
 
-    // Re-initialize hardware with configured pins
+    // ========================================================================
+    // PHASE 2: INITIALIZATION HARDWARE
+    // ========================================================================
     ret = hardware_init(config);
     if (ret != APP_OK)
     {
-        APP_LOG_ERROR(TAG, "Hardware re-init failed, aborting: %s", app_err_to_string(ret));
+        APP_LOG_ERROR(TAG, "Hardware init failed, aborting: %s", app_err_to_string(ret));
         return;
     }
 
