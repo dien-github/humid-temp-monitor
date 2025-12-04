@@ -187,7 +187,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
 /**
  * @brief Parse JSON command and queue it
  */
-static void mqtt_parse_and_queue_command(const char *data, int data_len)
+void mqtt_parse_and_queue_command(const char *data, int data_len)
 {
     if (!g_mqtt_ctx.command_queue) {
         return;
@@ -226,7 +226,7 @@ static void mqtt_parse_and_queue_command(const char *data, int data_len)
 /**
  * @brief Format MQTT config from app config
  */
-static void mqtt_prepare_config(esp_mqtt_client_config_t *mqtt_cfg, 
+void mqtt_prepare_config(esp_mqtt_client_config_t *mqtt_cfg, 
                                const mqtt_config_t *app_cfg)
 {
     memset(mqtt_cfg, 0, sizeof(esp_mqtt_client_config_t));
