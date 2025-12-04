@@ -34,10 +34,10 @@ typedef struct {
  * @brief Output device status
  */
 typedef struct {
-    relay_state_t relay;
-    fan_state_t fan;
-    uint32_t error_count;
-    uint64_t total_operations;
+   relay_state_t relay;
+   fan_state_t fan;
+   uint32_t error_count;
+   uint64_t total_operations;
 } output_status_t;
 
 /* ============================================================================
@@ -66,7 +66,7 @@ app_err_t app_output_init(uint8_t relay_pin, uint8_t fan_pin);
  * - Relay has mechanical delay (~50-200ms)
  * - Error code does NOT indicate relay actually moved
  */
-app_err_t app_output_set_relay(int state);
+app_err_t app_output_set_relay(relay_state_t state);
 
 /**
  * @brief Get current relay state
