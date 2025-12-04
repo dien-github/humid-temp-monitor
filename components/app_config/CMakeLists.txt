@@ -5,8 +5,6 @@ idf_component_register(
         "include"
     REQUIRES
         nvs_flash
-    PRIV_REQUIRES
-        sensor
 )
 
 target_include_directories(${COMPONENT_LIB}
