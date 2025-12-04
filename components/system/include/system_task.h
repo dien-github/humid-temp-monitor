@@ -44,6 +44,7 @@
 #include <stdbool.h>
 #include "app_common.h"
 #include "app_config.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
 /* =========================================================================
