@@ -7,6 +7,7 @@ idf_component_register(
         driver
         freertos
         app_config
+        esp_timer
 )
 
 target_include_directories(${COMPONENT_LIB}
