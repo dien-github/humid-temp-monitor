@@ -49,7 +49,7 @@ typedef struct {
  * @param data Pointer to command data
  * @param data_len Length of command data
  */
-static void mqtt_parse_and_queue_command(const char *data, int data_len);
+void mqtt_parse_and_queue_command(const char *data, int data_len);
 
 /**
  * @brief Prepare MQTT client configuration from application config
@@ -57,7 +57,7 @@ static void mqtt_parse_and_queue_command(const char *data, int data_len);
  * @param mqtt_cfg Pointer to ESP MQTT client configuration structure
  * @param app_cfg Pointer to application MQTT configuration
  */
-static void mqtt_prepare_config(esp_mqtt_client_config_t *mqtt_cfg, const mqtt_config_t *app_cfg);
+void mqtt_prepare_config(esp_mqtt_client_config_t *mqtt_cfg, const mqtt_config_t *app_cfg);
 
 /* ============================================================================
    PUBLIC API
