@@ -8,6 +8,7 @@
 #include "driver/gpio.h"
 #include "driver/ledc.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <string.h>
@@ -74,7 +75,6 @@ static app_err_t output_init_ledc(uint8_t fan_pin)
         .duty_resolution = LEDC_DUTY_RES,
         .freq_hz = LEDC_FREQUENCY,
         .clk_cfg = LEDC_AUTO_CLK,
-        .decimate = 0,
     };
     
     esp_err_t ret = ledc_timer_config(&ledc_timer);
@@ -230,7 +230,7 @@ app_err_t app_output_init(uint8_t relay_pin, uint8_t fan_pin)
    RELAY CONTROL
    ============================================================================ */
 
-app_err_t app_output_set_relay(int state)
+app_err_t app_output_set_relay(relay_state_t state)
 {
     if (!g_output_ctx.initialized) {
         APP_LOG_ERROR(TAG, "Output module not initialized");
@@ -368,6 +368,8 @@ app_err_t app_output_ramp_fan_speed(uint8_t target_speed, uint32_t duration_ms)
     }
     
     // Clamp target
+    // TODO: OPTIMIZE
+    // is this comparator need?
     if (target_speed > FAN_SPEED_MAX) {
         target_speed = FAN_SPEED_MAX;
     }
