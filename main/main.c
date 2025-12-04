@@ -219,7 +219,6 @@ static app_err_t task_system_init(const app_config_t *config)
 static app_err_t wifi_connection_init(const app_config_t *config)
 {
     APP_LOG_INFO(TAG, "=== PHASE 4: WIFI CONNECTION ===");
-    app_config_save_wifi("Nha N", "NhaN123@");
     // Check if WiFi credentials are configured
     if (strlen(config->wifi_ssid) == 0) {
         APP_LOG_WARN(TAG, "WiFi not configured, skipping connection");
