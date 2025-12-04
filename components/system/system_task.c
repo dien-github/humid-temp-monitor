@@ -19,9 +19,8 @@
 #include "app_output.h"
 #include "app_mqtt.h"
 #include "app_wifi.h"
-#include "freertos/FreeRTOS.h"
+#include "esp_timer.h"
 #include "freertos/task.h"
-#include "freertos/queue.h"
 #include "freertos/event_groups.h"
 #include <string.h>
 
@@ -179,11 +178,11 @@ static void task_mqtt_receive(void *pvParameter)
     
     APP_LOG_INFO(TAG, "MQTT RX task started");
     
-    control_message_t cmd = {0};
-    
+    control_message_t cmd;
     while (1) {
+        memset(&cmd, 0, sizeof(cmd));
         // Wait for MQTT messages
-        if (app_mqtt_receive_command(&cmd, pdMS_TO_TICKS(1000)) == APP_OK) {
+        if (app_mqtt_receive_command(cmd.type, &cmd.value, pdMS_TO_TICKS(1000)) == APP_OK) {
             APP_LOG_INFO(TAG, "Received command: type=%s value=%d", cmd.type, cmd.value);
             
             // Validate command
@@ -287,7 +286,7 @@ static void task_system_monitor(void *pvParameter)
         // Check heap
         size_t free_heap = esp_get_free_heap_size();
         size_t min_free_heap = esp_get_minimum_free_heap_size();
-        APP_LOG_DEBUG(TAG, "Heap: free=%d bytes, min_free=%d bytes", 
+        APP_LOG_DEBUG(TAG, "Heap: free=%zu bytes, min_free=%zu bytes", 
                      free_heap, min_free_heap);
         
         if (free_heap < 5000) {
